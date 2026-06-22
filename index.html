@@ -145,9 +145,32 @@ input[type=file]{display:none}
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:#d0d0ce;border-radius:3px}
+
+/* ── Global header ── */
+#global-header{height:40px;background:#fff;border-bottom:1px solid #e5e5e3;display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0}
+#app-title{font-size:14px;font-weight:600;color:#1a1a1a;white-space:nowrap}
+#storage-warning{background:#fef3c7;border:1px solid #fcd34d;color:#92400e;padding:4px 10px;font-size:11px;border-radius:6px;display:none;white-space:nowrap}
+#save-widget{margin-left:auto;display:flex;align-items:center;gap:8px;flex-shrink:0}
+.sdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;transition:background .2s}
+.sdot.saved{background:#10b981}
+.sdot.saving{background:#3b82f6;animation:sdpulse .7s ease-in-out infinite}
+.sdot.unsaved{background:#f59e0b}
+.sdot.failed{background:#ef4444}
+#save-label{font-size:12px;color:#666;min-width:130px}
+@keyframes sdpulse{0%,100%{opacity:1}50%{opacity:.3}}
 </style>
 </head>
 <body>
+
+<header id="global-header">
+  <span id="app-title">🖊 修正指示ツール</span>
+  <span id="storage-warning">⚠ 自動保存できません。手動保存（⌘S）してください</span>
+  <div id="save-widget">
+    <span class="sdot saved" id="save-dot"></span>
+    <span id="save-label">保存済み</span>
+    <button class="btn" onclick="manualSave()" title="手動保存 (⌘S / Ctrl+S)">💾 手動保存</button>
+  </div>
+</header>
 
 <div id="app">
 
@@ -245,7 +268,6 @@ input[type=file]{display:none}
   <button class="btn" onclick="exportAll()">全プロジェクト保存</button>
   <button class="btn" onclick="document.getElementById('import-input').click()">📂 JSONインポート</button>
   <button class="btn" onclick="exportPNG()">🖼 PNG書き出し</button>
-  <span id="save-status">自動保存待機中</span>
 </div>
 
 <input type="file" id="img-input" accept="image/*" multiple>
@@ -269,19 +291,121 @@ const activeAnns  = () => activeImg()?.annotations || [];
 const uid         = () => 'i' + (S.nextId++) + '_' + Date.now();
 function nextNum() { const used = activeAnns().map(a=>a.number); let n=1; while(used.includes(n))n++; return n; }
 
-// ── PERSISTENCE ────────────────────────────────────
-function save() {
-  try {
-    localStorage.setItem(KEY, JSON.stringify({ projects:S.projects, activeProjectId:S.activeProjectId, activeImageId:S.activeImageId, nextId:S.nextId }));
-    document.getElementById('save-status').textContent = '自動保存: ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-  } catch(e) { document.getElementById('save-status').textContent = '⚠ 保存失敗（容量超過）'; }
+// ── DEBOUNCE ───────────────────────────────────────
+function debounce(fn, ms) { let t; return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); }; }
+
+// ── SAVE MANAGER ───────────────────────────────────
+const SM = {
+  isDirty: false,
+  storageOK: true,
+  useIDB: false,
+  idbDB: null,
+
+  async init() {
+    // Check localStorage availability
+    try { localStorage.setItem('__chk__','1'); localStorage.removeItem('__chk__'); }
+    catch(e) {
+      this.storageOK = false;
+      // Fallback to IndexedDB
+      try { await this.idbOpen(); this.storageOK = true; this.useIDB = true; }
+      catch(e2) {}
+    }
+    if (!this.storageOK) {
+      document.getElementById('storage-warning').style.display = 'block';
+    }
+  },
+
+  idbOpen() {
+    return new Promise((res, rej) => {
+      const req = indexedDB.open('anno-tool-idb', 1);
+      req.onupgradeneeded = e => e.target.result.createObjectStore('kv', {keyPath:'k'});
+      req.onsuccess = e => { this.idbDB = e.target.result; res(); };
+      req.onerror = rej;
+    });
+  },
+
+  idbSet(v) {
+    return new Promise((res, rej) => {
+      const tx = this.idbDB.transaction('kv','readwrite');
+      tx.objectStore('kv').put({k: KEY, v});
+      tx.oncomplete = res; tx.onerror = rej;
+    });
+  },
+
+  idbGet() {
+    return new Promise((res, rej) => {
+      const tx = this.idbDB.transaction('kv','readonly');
+      const req = tx.objectStore('kv').get(KEY);
+      req.onsuccess = () => res(req.result?.v);
+      req.onerror = rej;
+    });
+  },
+
+  markDirty() {
+    this.isDirty = true;
+    setSaveStatus('unsaved');
+    this._debAutoSave();
+  },
+
+  _debAutoSave: null, // assigned after object literal
+
+  async autoSave() {
+    if (!this.storageOK) return;
+    setSaveStatus('saving');
+    const data = JSON.stringify({ projects:S.projects, activeProjectId:S.activeProjectId, activeImageId:S.activeImageId, nextId:S.nextId });
+    try {
+      if (this.useIDB && this.idbDB) { await this.idbSet(data); }
+      else { localStorage.setItem(KEY, data); }
+      this.isDirty = false;
+      setSaveStatus('saved');
+    } catch(e) {
+      // localStorage quota exceeded → switch to IDB
+      if (!this.useIDB) {
+        try {
+          await this.idbOpen(); this.useIDB = true;
+          await this.idbSet(data);
+          this.isDirty = false;
+          setSaveStatus('saved');
+        } catch(e2) { setSaveStatus('failed'); document.getElementById('storage-warning').style.display='block'; }
+      } else { setSaveStatus('failed'); }
+    }
+  },
+
+  async load() {
+    try {
+      let raw = null;
+      try { raw = localStorage.getItem(KEY); } catch(e) {}
+      if (!raw && this.idbDB) raw = await this.idbGet();
+      if (raw) {
+        const d = JSON.parse(raw);
+        if (d.projects) { S.projects=d.projects; S.activeProjectId=d.activeProjectId; S.activeImageId=d.activeImageId; S.nextId=d.nextId||1; }
+      }
+    } catch(e) {}
+  },
+
+  manualSave() {
+    const p = activeProj();
+    if (p) { dl(projData(p), p.name+'_annotations.json'); }
+    else if (S.projects.length) { dl({exportedAt:new Date().toISOString(),projects:S.projects.map(projData)},'all_projects.json'); }
+    else { toast('保存するプロジェクトがありません'); return; }
+    this.isDirty = false;
+    setSaveStatus('saved');
+    toast('JSONを手動保存しました');
+  }
+};
+SM._debAutoSave = debounce(() => SM.autoSave(), 800);
+
+function save() { SM.markDirty(); }
+
+function setSaveStatus(state) {
+  const dot = document.getElementById('save-dot');
+  const lbl = document.getElementById('save-label');
+  dot.className = 'sdot ' + state;
+  const map = { saved:'保存済み ✓', saving:'保存中...', unsaved:'未保存の変更あり', failed:'自動保存失敗 ⚠' };
+  lbl.textContent = map[state] + (state==='saved' ? '  ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'}) : '');
 }
-function load() {
-  try {
-    const d = JSON.parse(localStorage.getItem(KEY)||'{}');
-    if (d.projects) { S.projects=d.projects; S.activeProjectId=d.activeProjectId; S.activeImageId=d.activeImageId; S.nextId=d.nextId||1; }
-  } catch(e) {}
-}
+
+function manualSave() { SM.manualSave(); }
 
 // ── PROJECT CRUD ───────────────────────────────────
 function createProject() {
@@ -611,6 +735,8 @@ document.getElementById('import-input').addEventListener('change',e=>{if(e.targe
 
 // ── KEYBOARD ───────────────────────────────────────
 document.addEventListener('keydown',e=>{
+  // ⌘S / Ctrl+S → 手動保存（フォーム内でも有効）
+  if((e.metaKey||e.ctrlKey)&&e.key==='s'){e.preventDefault();manualSave();return;}
   if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
   if(e.key==='p'||e.key==='P')setTool('point');
   if(e.key==='r'||e.key==='R')setTool('rect');
@@ -619,13 +745,23 @@ document.addEventListener('keydown',e=>{
   if(e.key==='Delete'&&S.selectedId)deleteAnn(S.selectedId);
 });
 
+// ── BEFORE UNLOAD ──────────────────────────────────
+window.addEventListener('beforeunload', e => {
+  if (SM.isDirty) { e.preventDefault(); e.returnValue = '未保存の変更があります。ページを閉じますか？'; }
+});
+
 // ── UTIL ───────────────────────────────────────────
 function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 let _tt;
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove('show'),2200);}
 
 // ── BOOT ───────────────────────────────────────────
-load(); render();
+(async () => {
+  await SM.init();
+  await SM.load();
+  render();
+  setSaveStatus('saved');
+})();
 </script>
 </body>
 </html>
