@@ -5,955 +5,627 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>修正指示ツール</title>
 <style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif; background: #f5f5f3; color: #1a1a1a; height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Yu Gothic UI',sans-serif;background:#f0f0ee;color:#1a1a1a;height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13px}
 
-/* ─── Toolbar ─── */
-#toolbar {
-  height: 52px;
-  background: #fff;
-  border-bottom: 1px solid #e5e5e3;
-  display: flex;
-  align-items: center;
-  padding: 0 16px;
-  gap: 8px;
-  flex-shrink: 0;
-  z-index: 100;
-}
-.tool-group { display: flex; align-items: center; gap: 4px; }
-.tool-sep { width: 1px; height: 24px; background: #e5e5e3; margin: 0 4px; }
-#app-title { font-size: 15px; font-weight: 600; color: #1a1a1a; margin-right: 8px; white-space: nowrap; }
+/* ── App Shell ── */
+#app{flex:1;display:grid;grid-template-columns:220px 1fr 320px;overflow:hidden}
 
-button {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 6px 12px; border-radius: 6px;
-  border: 1px solid #d5d5d3; background: #fff;
-  font-size: 13px; color: #333; cursor: pointer;
-  white-space: nowrap; transition: background .15s, border-color .15s;
-}
-button:hover { background: #f5f5f3; border-color: #b5b5b3; }
-button:active { background: #eee; }
-button.active { background: #1a1a1a; color: #fff; border-color: #1a1a1a; }
-button.btn-primary { background: #2563eb; color: #fff; border-color: #2563eb; }
-button.btn-primary:hover { background: #1d4ed8; }
-button.btn-danger { background: #fff; color: #dc2626; border-color: #fca5a5; }
-button.btn-danger:hover { background: #fef2f2; }
-button svg { width: 15px; height: 15px; flex-shrink: 0; }
+/* ── Left: Project sidebar ── */
+#project-sidebar{background:#fff;border-right:1px solid #e5e5e3;display:flex;flex-direction:column;overflow:hidden}
+.ps-header{padding:12px 12px 8px;border-bottom:1px solid #f0f0ee;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.ps-header h2{font-size:11px;font-weight:600;color:#888;letter-spacing:.06em;text-transform:uppercase}
+#project-list{flex:1;overflow-y:auto;padding:6px}
+.project-item{padding:9px 10px;border-radius:8px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:background .12s;margin-bottom:2px}
+.project-item:hover{background:#f5f5f3}
+.project-item.active{background:#eff6ff;color:#2563eb}
+.project-item .pi-name{flex:1;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.project-item .pi-count{font-size:11px;color:#aaa;flex-shrink:0}
+.project-item.active .pi-count{color:#93c5fd}
+.project-item .pi-acts{display:none;gap:2px}
+.project-item:hover .pi-acts{display:flex}
+.pi-btn{width:22px;height:22px;border:none;background:none;cursor:pointer;border-radius:4px;color:#888;font-size:13px;display:flex;align-items:center;justify-content:center;padding:0}
+.pi-btn:hover{background:#e5e5e3;color:#333}
 
-#zoom-label { font-size: 13px; color: #666; min-width: 42px; text-align: center; }
-.tool-label { font-size: 12px; color: #888; padding: 0 4px; }
+/* ── Center: Canvas area ── */
+#canvas-area{display:flex;flex-direction:column;overflow:hidden;background:#e8e8e6}
+#image-toolbar{background:#fff;border-bottom:1px solid #e5e5e3;padding:8px 12px;display:flex;align-items:center;gap:8px;flex-shrink:0;min-height:52px}
+#image-strip{flex:1;display:flex;gap:6px;overflow-x:auto;padding:2px 0;min-width:0}
+#image-strip::-webkit-scrollbar{height:4px}
+#image-strip::-webkit-scrollbar-thumb{background:#d0d0ce;border-radius:2px}
+.thumb-item{flex-shrink:0;position:relative;cursor:pointer;border-radius:6px;overflow:hidden;border:2px solid transparent;transition:border-color .15s}
+.thumb-item img{display:block;width:60px;height:44px;object-fit:cover}
+.thumb-item.active{border-color:#2563eb}
+.thumb-item .tdel{position:absolute;top:2px;right:2px;width:16px;height:16px;background:rgba(0,0,0,.55);color:#fff;border:none;border-radius:50%;cursor:pointer;font-size:10px;display:none;align-items:center;justify-content:center;padding:0;line-height:1}
+.thumb-item:hover .tdel{display:flex}
+.tool-sep{width:1px;height:24px;background:#e5e5e3;margin:0 2px;flex-shrink:0}
 
-/* ─── Main Layout ─── */
-#main {
-  flex: 1;
-  display: flex;
-  overflow: hidden;
-}
+/* Viewport */
+#viewport{flex:1;overflow:auto;display:flex;align-items:flex-start;justify-content:flex-start;padding:24px}
+#img-container{position:relative;display:inline-block;box-shadow:0 4px 24px rgba(0,0,0,.15);border-radius:4px;overflow:hidden;flex-shrink:0}
+#main-img{display:block;max-width:none}
+#ann-overlay{position:absolute;inset:0;cursor:crosshair}
+#ann-overlay.mode-select{cursor:default}
 
-/* ─── Canvas Area ─── */
-#canvas-wrap {
-  flex: 1;
-  overflow: auto;
-  position: relative;
-  background: #e8e8e6;
-  display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
-}
-#canvas-inner {
-  position: relative;
-  display: inline-block;
-  margin: 24px;
-  box-shadow: 0 4px 24px rgba(0,0,0,.12);
-  cursor: crosshair;
-  user-select: none;
-  border-radius: 4px;
-  overflow: hidden;
-}
-#canvas-inner.drawing-rect { cursor: crosshair; }
-#canvas-inner.mode-pointer { cursor: default; }
+/* Pins */
+.pin{position:absolute;width:26px;height:26px;border-radius:50% 50% 50% 0;transform:translate(-50%,-100%) rotate(-45deg);cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.3);z-index:20;transition:transform .12s}
+.pin:hover{transform:translate(-50%,-100%) rotate(-45deg) scale(1.2)}
+.pin.sel{box-shadow:0 0 0 3px rgba(255,255,255,.85),0 2px 8px rgba(0,0,0,.3)}
+.pin .pn{transform:rotate(45deg);font-size:10px;font-weight:700;color:#fff;line-height:1}
+.pin.s-todo{background:#ef4444}.pin.s-doing{background:#f59e0b}.pin.s-done{background:#10b981}
 
-#main-image {
-  display: block;
-  max-width: none;
-  transform-origin: top left;
-}
-#pin-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-#draw-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
+/* Rects */
+.ann-rect{position:absolute;border:2.5px solid #ef4444;background:rgba(239,68,68,.07);cursor:pointer;z-index:10;border-radius:2px}
+.ann-rect:hover{background:rgba(239,68,68,.14)}
+.ann-rect.sel{border-color:#2563eb;background:rgba(37,99,235,.09);box-shadow:0 0 0 2px rgba(37,99,235,.25)}
+.ann-rect.s-doing{border-color:#f59e0b;background:rgba(245,158,11,.07)}
+.ann-rect.s-done{border-color:#10b981;background:rgba(16,185,129,.07)}
+.rnum{position:absolute;top:-12px;left:-2px;background:#ef4444;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:3px;pointer-events:none}
+.ann-rect.s-doing .rnum{background:#f59e0b}.ann-rect.s-done .rnum{background:#10b981}.ann-rect.sel .rnum{background:#2563eb}
 
-/* ─── Pins ─── */
-.pin {
-  position: absolute;
-  width: 28px; height: 28px;
-  border-radius: 50% 50% 50% 0;
-  transform: translate(-50%, -100%) rotate(-45deg);
-  cursor: pointer;
-  pointer-events: all;
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 2px 8px rgba(0,0,0,.25);
-  transition: transform .15s;
-  z-index: 10;
-}
-.pin:hover { transform: translate(-50%, -100%) rotate(-45deg) scale(1.15); }
-.pin .pin-num {
-  transform: rotate(45deg);
-  font-size: 11px; font-weight: 700; color: #fff;
-  line-height: 1;
-}
-.pin.status-todo   { background: #ef4444; }
-.pin.status-doing  { background: #f59e0b; }
-.pin.status-done   { background: #10b981; }
-.pin.hidden { display: none; }
-.pin.selected::after {
-  content: '';
-  position: absolute; inset: -4px;
-  border-radius: 50% 50% 50% 0;
-  border: 2px solid #fff;
-  pointer-events: none;
-}
+/* Draw preview */
+#draw-prev{position:absolute;border:2px dashed #2563eb;background:rgba(37,99,235,.06);pointer-events:none;z-index:30;border-radius:2px;display:none}
 
-/* ─── Drawing overlays ─── */
-.draw-rect {
-  position: absolute;
-  border: 2.5px solid #ef4444;
-  background: rgba(239,68,68,.08);
-  pointer-events: none;
-  border-radius: 2px;
-}
-.draw-arrow {
-  position: absolute;
-  pointer-events: none;
-  overflow: visible;
-}
+/* Empty states */
+#no-project{flex:1;display:flex;align-items:center;justify-content:center;color:#aaa}
+#empty-project{flex:1;display:flex;align-items:center;justify-content:center;color:#aaa;display:none}
+.upload-drop{border:2px dashed #d0d0ce;border-radius:12px;padding:40px 48px;text-align:center;cursor:pointer;background:#fff;transition:border-color .15s;max-width:380px}
+.upload-drop:hover,.upload-drop.over{border-color:#2563eb;color:#2563eb}
+.upload-drop p{font-size:15px;font-weight:500;margin-bottom:6px}
+.upload-drop small{font-size:12px;color:#aaa}
 
-/* ─── Upload Placeholder ─── */
-#upload-placeholder {
-  position: absolute; inset: 0;
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  gap: 16px; color: #888;
-}
-#upload-placeholder.hidden { display: none; }
-#drop-zone {
-  border: 2px dashed #ccc; border-radius: 12px;
-  padding: 48px 64px; text-align: center; cursor: pointer;
-  background: #fff; transition: border-color .2s;
-}
-#drop-zone:hover, #drop-zone.dragover { border-color: #2563eb; color: #2563eb; }
-#drop-zone svg { width: 40px; height: 40px; margin-bottom: 12px; }
-#drop-zone p { font-size: 15px; font-weight: 500; }
-#drop-zone small { font-size: 13px; color: #aaa; }
-#file-input { display: none; }
+/* ── Right: Annotation sidebar ── */
+#ann-sidebar{background:#fff;border-left:1px solid #e5e5e3;display:flex;flex-direction:column;overflow:hidden}
+#as-header{padding:12px 14px 8px;border-bottom:1px solid #f0f0ee;flex-shrink:0;display:flex;align-items:center;justify-content:space-between}
+#as-header h2{font-size:11px;font-weight:600;color:#888;letter-spacing:.06em;text-transform:uppercase}
+#ann-count{font-size:12px;background:#f0f0ee;color:#666;padding:2px 8px;border-radius:99px}
+#filter-row{padding:6px 10px;border-bottom:1px solid #f0f0ee;display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0}
+.fbtn{padding:3px 9px;font-size:12px;border-radius:99px;border:1px solid #e0e0de;background:#fff;color:#555;cursor:pointer;transition:all .12s;font-family:inherit}
+.fbtn:hover{border-color:#2563eb;color:#2563eb}
+.fbtn.active{background:#2563eb;color:#fff;border-color:#2563eb}
+#ann-list{flex:1;overflow-y:auto;padding:8px}
 
-/* ─── Sidebar ─── */
-#sidebar {
-  width: 340px;
-  flex-shrink: 0;
-  background: #fff;
-  border-left: 1px solid #e5e5e3;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-}
-#sidebar-header {
-  padding: 14px 16px 10px;
-  border-bottom: 1px solid #f0f0ee;
-  display: flex; align-items: center; justify-content: space-between;
-  flex-shrink: 0;
-}
-#sidebar-header h2 { font-size: 14px; font-weight: 600; color: #333; }
-#sidebar-header .count-badge {
-  font-size: 12px; background: #f0f0ee; color: #666;
-  padding: 2px 8px; border-radius: 99px;
-}
-#filter-bar {
-  padding: 8px 12px;
-  border-bottom: 1px solid #f0f0ee;
-  display: flex; gap: 4px; flex-wrap: wrap; flex-shrink: 0;
-}
-.filter-btn {
-  padding: 3px 10px; font-size: 12px; border-radius: 99px;
-  border: 1px solid #e0e0de; background: #fff; color: #555;
-  cursor: pointer; transition: all .15s;
-}
-.filter-btn:hover { border-color: #2563eb; color: #2563eb; }
-.filter-btn.active { background: #2563eb; color: #fff; border-color: #2563eb; }
-#comment-list { flex: 1; overflow-y: auto; padding: 8px; }
+/* Cards */
+.ann-card{border:1px solid #e8e8e6;border-radius:10px;margin-bottom:7px;cursor:pointer;transition:border-color .12s,box-shadow .12s;background:#fff;overflow:hidden}
+.ann-card:hover{border-color:#93c5fd}
+.ann-card.sel{border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.ann-card.s-done{opacity:.6}
+.ctop{padding:9px 10px 7px;display:flex;align-items:flex-start;gap:7px}
+.cnum{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff;flex-shrink:0}
+.cnum.s-todo{background:#ef4444}.cnum.s-doing{background:#f59e0b}.cnum.s-done{background:#10b981}
+.cinfo{flex:1;min-width:0}
+.ctext{font-size:13px;font-weight:500;line-height:1.4;word-break:break-all;margin-bottom:4px}
+.cbadges{display:flex;gap:3px;flex-wrap:wrap}
+.badge{font-size:10px;padding:2px 6px;border-radius:4px;font-weight:500}
+.b-high{background:#fef2f2;color:#dc2626}.b-mid{background:#fff7ed;color:#d97706}.b-low{background:#f0fdf4;color:#16a34a}
+.b-todo{background:#fef2f2;color:#dc2626}.b-doing{background:#fffbeb;color:#d97706}.b-done{background:#f0fdf4;color:#16a34a}
+.b-assign{background:#eff6ff;color:#2563eb}.b-type{background:#f5f5f3;color:#666}
+.cref{padding:5px 10px 6px;font-size:12px;color:#666;border-top:1px solid #f5f5f3}
+.cref-label{color:#aaa;font-size:11px}
+.cacts{display:flex;gap:4px;padding:6px 8px;border-top:1px solid #f5f5f3}
+.cacts button,.cacts select{font-size:12px;padding:4px 7px;border-radius:6px;border:1px solid #d5d5d3;background:#fff;cursor:pointer;color:#333;transition:background .12s;font-family:inherit}
+.cacts button:hover{background:#f5f5f3}
+.cacts select{flex:1}
+.bdel{color:#dc2626!important;border-color:#fca5a5!important}
+.bdel:hover{background:#fef2f2!important}
 
-/* ─── Comment Cards ─── */
-.comment-card {
-  border: 1px solid #e8e8e6; border-radius: 10px;
-  margin-bottom: 8px; overflow: hidden; cursor: pointer;
-  transition: border-color .15s, box-shadow .15s;
-  background: #fff;
-}
-.comment-card:hover { border-color: #93c5fd; box-shadow: 0 2px 8px rgba(37,99,235,.08); }
-.comment-card.selected { border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
-.comment-card.status-done { opacity: .65; }
+/* Edit panel */
+#edit-panel{flex-shrink:0;border-top:1px solid #e5e5e3;padding:12px;background:#fafaf8;display:none;max-height:54%;overflow-y:auto}
+#edit-panel.open{display:block}
+#edit-panel h3{font-size:13px;font-weight:600;margin-bottom:10px;color:#333}
+.fr{margin-bottom:8px}
+.fr label{display:block;font-size:11px;color:#888;margin-bottom:3px;font-weight:500}
+.fr input,.fr textarea,.fr select{width:100%;font-size:13px;padding:6px 8px;border:1px solid #d5d5d3;border-radius:6px;background:#fff;color:#1a1a1a;font-family:inherit;transition:border-color .12s}
+.fr input:focus,.fr textarea:focus,.fr select:focus{outline:none;border-color:#2563eb;box-shadow:0 0 0 3px rgba(37,99,235,.1)}
+.fr textarea{resize:vertical;min-height:58px}
+.fr-2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ep-acts{display:flex;gap:6px;margin-top:10px}
+.ep-acts button{flex:1;padding:7px;border-radius:6px;border:1px solid #d5d5d3;background:#fff;cursor:pointer;font-size:13px;font-family:inherit;transition:background .12s}
+.ep-save{background:#2563eb!important;color:#fff;border-color:#2563eb!important}
+.ep-save:hover{background:#1d4ed8!important}
 
-.card-header {
-  padding: 10px 12px 8px;
-  display: flex; align-items: flex-start; gap: 8px;
-  border-bottom: 1px solid #f5f5f3;
-}
-.card-pin {
-  width: 24px; height: 24px; border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 11px; font-weight: 700; color: #fff; flex-shrink: 0;
-}
-.card-pin.status-todo  { background: #ef4444; }
-.card-pin.status-doing { background: #f59e0b; }
-.card-pin.status-done  { background: #10b981; }
+/* Bottom bar */
+#bottom-bar{height:36px;background:#fff;border-top:1px solid #e5e5e3;display:flex;align-items:center;padding:0 12px;gap:6px;flex-shrink:0}
+#save-status{margin-left:auto;font-size:11px;color:#aaa}
 
-.card-meta { flex: 1; min-width: 0; }
-.card-title { font-size: 13px; font-weight: 600; line-height: 1.4; word-break: break-all; }
-.card-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
-.badge {
-  font-size: 11px; padding: 2px 7px; border-radius: 4px; font-weight: 500;
-}
-.badge-high   { background: #fef2f2; color: #dc2626; }
-.badge-mid    { background: #fff7ed; color: #d97706; }
-.badge-low    { background: #f0fdf4; color: #16a34a; }
-.badge-todo   { background: #fef2f2; color: #dc2626; }
-.badge-doing  { background: #fffbeb; color: #d97706; }
-.badge-done   { background: #f0fdf4; color: #16a34a; }
-.badge-assign { background: #eff6ff; color: #2563eb; }
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:4px;padding:5px 10px;border-radius:6px;border:1px solid #d5d5d3;background:#fff;font-size:12px;color:#333;cursor:pointer;font-family:inherit;transition:background .12s;white-space:nowrap}
+.btn:hover{background:#f5f5f3}
+.btn.active{background:#1a1a1a;color:#fff;border-color:#1a1a1a}
+.btn.primary{background:#2563eb;color:#fff;border-color:#2563eb}
+.btn.primary:hover{background:#1d4ed8}
+.btn svg{width:13px;height:13px;flex-shrink:0}
+.btn-icon{width:28px;height:28px;padding:0;justify-content:center}
+#zoom-val{font-size:12px;color:#666;min-width:36px;text-align:center}
 
-.card-body { padding: 8px 12px; }
-.card-field { font-size: 12px; color: #555; margin-bottom: 4px; line-height: 1.5; }
-.card-field-label { color: #999; font-size: 11px; }
-.card-actions { display: flex; gap: 4px; padding: 6px 8px; border-top: 1px solid #f5f5f3; }
-.card-actions button { font-size: 12px; padding: 4px 8px; flex: 1; }
-
-/* ─── Edit Form (inline in sidebar) ─── */
-#edit-panel {
-  border-top: 1px solid #e5e5e3;
-  padding: 12px;
-  background: #fafaf8;
-  flex-shrink: 0;
-  display: none;
-}
-#edit-panel.open { display: block; }
-#edit-panel h3 { font-size: 13px; font-weight: 600; margin-bottom: 10px; color: #333; }
-.form-row { margin-bottom: 8px; }
-.form-row label { display: block; font-size: 12px; color: #666; margin-bottom: 3px; }
-.form-row input, .form-row textarea, .form-row select {
-  width: 100%; font-size: 13px; padding: 7px 9px;
-  border: 1px solid #d5d5d3; border-radius: 6px;
-  background: #fff; color: #1a1a1a;
-  font-family: inherit;
-  transition: border-color .15s;
-}
-.form-row input:focus, .form-row textarea:focus, .form-row select:focus {
-  outline: none; border-color: #2563eb; box-shadow: 0 0 0 3px rgba(37,99,235,.1);
-}
-.form-row textarea { resize: vertical; min-height: 64px; }
-.form-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.form-actions { display: flex; gap: 6px; margin-top: 10px; }
-.form-actions button { flex: 1; }
-
-/* ─── Modal ─── */
-#modal-overlay {
-  display: none; position: fixed; inset: 0;
-  background: rgba(0,0,0,.4); z-index: 1000;
-  align-items: center; justify-content: center;
-}
-#modal-overlay.open { display: flex; }
-#modal-box {
-  background: #fff; border-radius: 12px; padding: 24px;
-  width: 440px; max-width: 90vw;
-  box-shadow: 0 20px 60px rgba(0,0,0,.2);
-}
-#modal-box h3 { font-size: 16px; font-weight: 600; margin-bottom: 16px; }
-#modal-box .form-actions { margin-top: 16px; }
-
-/* ─── Toast ─── */
-#toast {
-  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
-  background: #1a1a1a; color: #fff; padding: 10px 20px;
-  border-radius: 8px; font-size: 13px; z-index: 2000;
-  opacity: 0; transition: opacity .25s; pointer-events: none;
-}
-#toast.show { opacity: 1; }
-
-/* ─── Scrollbar ─── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #d0d0ce; border-radius: 3px; }
+/* Toast */
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1a1a1a;color:#fff;padding:8px 18px;border-radius:8px;font-size:13px;z-index:9999;opacity:0;transition:opacity .2s;pointer-events:none}
+#toast.show{opacity:1}
+input[type=file]{display:none}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:#d0d0ce;border-radius:3px}
 </style>
 </head>
 <body>
 
-<!-- Toolbar -->
-<div id="toolbar">
-  <span id="app-title">🖊 修正指示ツール</span>
-  <div class="tool-sep"></div>
+<div id="app">
 
-  <div class="tool-group">
-    <button id="btn-upload" onclick="document.getElementById('file-input').click()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      画像を開く
-    </button>
-    <input type="file" id="file-input" accept="image/*">
-  </div>
+  <!-- LEFT: Project sidebar -->
+  <aside id="project-sidebar">
+    <div class="ps-header">
+      <h2>商材ボックス</h2>
+      <button class="btn btn-icon" onclick="createProject()" title="新規作成">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </div>
+    <div id="project-list"></div>
+  </aside>
 
-  <div class="tool-sep"></div>
+  <!-- CENTER: Canvas -->
+  <main id="canvas-area">
+    <div id="image-toolbar">
+      <button class="btn" onclick="triggerUpload()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        画像追加
+      </button>
+      <div class="tool-sep"></div>
+      <div id="image-strip"></div>
+      <div class="tool-sep"></div>
+      <button class="btn active" id="btn-point" onclick="setTool('point')">📍 ピン</button>
+      <button class="btn" id="btn-rect"  onclick="setTool('rect')">⬜ 範囲</button>
+      <button class="btn" id="btn-select" onclick="setTool('select')">↖ 選択</button>
+      <div class="tool-sep"></div>
+      <button class="btn btn-icon" onclick="changeZoom(-0.25)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+      </button>
+      <span id="zoom-val">100%</span>
+      <button class="btn btn-icon" onclick="changeZoom(0.25)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+      </button>
+      <button class="btn" onclick="fitZoom()">フィット</button>
+    </div>
 
-  <div class="tool-group">
-    <span class="tool-label">ツール</span>
-    <button id="btn-pin" class="active" onclick="setTool('pin')" title="ピンを置く (P)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0112 2a8 8 0 018 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
-      ピン
-    </button>
-    <button id="btn-rect" onclick="setTool('rect')" title="囲み (R)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-      囲み
-    </button>
-    <button id="btn-pointer" onclick="setTool('pointer')" title="選択 (S)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4l7.07 17 2.51-7.39L21 11.07z"/></svg>
-      選択
-    </button>
-  </div>
-
-  <div class="tool-sep"></div>
-
-  <div class="tool-group">
-    <button onclick="zoom(-0.25)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-    </button>
-    <span id="zoom-label">100%</span>
-    <button onclick="zoom(0.25)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
-    </button>
-    <button onclick="zoom(0)" title="実際のサイズ">1:1</button>
-    <button onclick="fitImage()" title="フィット">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></svg>
-    </button>
-  </div>
-
-  <div class="tool-sep"></div>
-
-  <div class="tool-group">
-    <button onclick="toggleDone()" id="btn-hide-done">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-      完了を非表示
-    </button>
-    <button onclick="exportJSON()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-      JSONを保存
-    </button>
-    <button onclick="document.getElementById('import-input').click()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      JSONを開く
-    </button>
-    <input type="file" id="import-input" accept=".json" style="display:none">
-    <button onclick="exportPNG()">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-      PNG書き出し
-    </button>
-  </div>
-</div>
-
-<!-- Main -->
-<div id="main">
-  <!-- Canvas -->
-  <div id="canvas-wrap">
-    <div id="upload-placeholder">
-      <div id="drop-zone">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-        <p>画像をここにドロップ</p>
-        <small>または クリックしてファイルを選択</small>
+    <div id="viewport">
+      <div id="no-project">
+        <div style="text-align:center">
+          <p style="font-size:16px;font-weight:500;margin-bottom:12px;color:#bbb">左のサイドバーからプロジェクトを作成</p>
+          <button class="btn primary" onclick="createProject()">+ 新規ボックス作成</button>
+        </div>
+      </div>
+      <div id="empty-project">
+        <div class="upload-drop" id="drop-zone">
+          <svg style="width:36px;height:36px;margin-bottom:12px;color:#ccc" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+          <p>画像をドロップ</p>
+          <small>またはクリックしてアップロード</small>
+        </div>
+      </div>
+      <div id="img-container" style="display:none">
+        <img id="main-img" alt="">
+        <div id="ann-overlay">
+          <div id="draw-prev"></div>
+        </div>
       </div>
     </div>
-    <div id="canvas-inner" style="display:none;">
-      <img id="main-image" src="" alt="annotation target">
-      <div id="pin-layer"></div>
-      <canvas id="draw-layer"></canvas>
-    </div>
-  </div>
+  </main>
 
-  <!-- Sidebar -->
-  <div id="sidebar">
-    <div id="sidebar-header">
-      <h2>修正コメント一覧</h2>
-      <span class="count-badge" id="count-badge">0 件</span>
+  <!-- RIGHT: Annotation sidebar -->
+  <aside id="ann-sidebar">
+    <div id="as-header">
+      <h2>修正コメント</h2>
+      <span id="ann-count">0件</span>
     </div>
-    <div id="filter-bar">
-      <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">すべて</button>
-      <button class="filter-btn" data-filter="todo" onclick="setFilter('todo', this)">未対応</button>
-      <button class="filter-btn" data-filter="doing" onclick="setFilter('doing', this)">対応中</button>
-      <button class="filter-btn" data-filter="done" onclick="setFilter('done', this)">完了</button>
-      <button class="filter-btn" data-filter="high" onclick="setFilter('high', this)">優先度：高</button>
+    <div id="filter-row">
+      <button class="fbtn active" onclick="setFilter('all',this)">すべて</button>
+      <button class="fbtn" onclick="setFilter('todo',this)">未対応</button>
+      <button class="fbtn" onclick="setFilter('doing',this)">対応中</button>
+      <button class="fbtn" onclick="setFilter('done',this)">完了</button>
+      <button class="fbtn" onclick="setFilter('high',this)">優先高</button>
     </div>
-    <div id="comment-list"></div>
+    <div id="ann-list"></div>
     <div id="edit-panel">
-      <h3 id="edit-panel-title">コメントを編集</h3>
-      <div class="form-row">
-        <label>修正内容 <span style="color:#ef4444">*</span></label>
-        <textarea id="f-content" rows="3" placeholder="どこをどう直してほしいか"></textarea>
+      <h3 id="ep-title">コメントを編集</h3>
+      <div class="fr"><label>修正内容 *</label><textarea id="ep-content" rows="3" placeholder="どこをどう直してほしいか"></textarea></div>
+      <div class="fr"><label>参考文言</label><textarea id="ep-ref" rows="2" placeholder="コピー案・参考テキストなど"></textarea></div>
+      <div class="fr-2">
+        <div class="fr"><label>優先度</label><select id="ep-priority"><option value="high">高</option><option value="mid" selected>中</option><option value="low">低</option></select></div>
+        <div class="fr"><label>ステータス</label><select id="ep-status"><option value="todo" selected>未対応</option><option value="doing">対応中</option><option value="done">完了</option></select></div>
       </div>
-      <div class="form-row">
-        <label>参考文言</label>
-        <textarea id="f-reference" rows="2" placeholder="コピー案・参考テキストなど"></textarea>
-      </div>
-      <div class="form-row-2">
-        <div class="form-row">
-          <label>優先度</label>
-          <select id="f-priority">
-            <option value="high">高</option>
-            <option value="mid" selected>中</option>
-            <option value="low">低</option>
-          </select>
-        </div>
-        <div class="form-row">
-          <label>ステータス</label>
-          <select id="f-status">
-            <option value="todo" selected>未対応</option>
-            <option value="doing">対応中</option>
-            <option value="done">完了</option>
-          </select>
-        </div>
-      </div>
-      <div class="form-row">
-        <label>担当者</label>
-        <input type="text" id="f-assignee" placeholder="例：田中さん">
-      </div>
-      <div class="form-actions">
-        <button class="btn-primary" onclick="saveEdit()">保存</button>
+      <div class="fr"><label>担当者</label><input type="text" id="ep-assignee" placeholder="例：田中さん"></div>
+      <div class="ep-acts">
+        <button class="ep-save" onclick="saveEdit()">保存</button>
         <button onclick="cancelEdit()">キャンセル</button>
       </div>
     </div>
-  </div>
+  </aside>
 </div>
 
-<!-- Toast -->
+<div id="bottom-bar">
+  <button class="btn" onclick="exportCurrent()">💾 現在のプロジェクトを保存</button>
+  <button class="btn" onclick="exportAll()">全プロジェクト保存</button>
+  <button class="btn" onclick="document.getElementById('import-input').click()">📂 JSONインポート</button>
+  <button class="btn" onclick="exportPNG()">🖼 PNG書き出し</button>
+  <span id="save-status">自動保存待機中</span>
+</div>
+
+<input type="file" id="img-input" accept="image/*" multiple>
+<input type="file" id="import-input" accept=".json">
 <div id="toast"></div>
 
 <script>
-// ─── State ───────────────────────────────────────────────
-let annotations = [];
-let nextId = 1;
-let selectedId = null;
-let editingId = null;
-let currentTool = 'pin';
-let zoomLevel = 1;
-let hideDone = false;
-let currentFilter = 'all';
-let imageNaturalW = 0, imageNaturalH = 0;
-let imageDataURL = '';
-let imageName = '';
+// ── STATE ──────────────────────────────────────────
+const S = {
+  projects: [], activeProjectId: null, activeImageId: null,
+  selectedId: null, editingId: null,
+  tool: 'point', zoom: 1, filter: 'all', nextId: 1,
+  drawing: false, dx0: 0, dy0: 0,
+};
+const KEY = 'anno-tool-v3';
 
-// Drawing state
-let drawStart = null;
-let drawRect = null;
-let isDrawing = false;
+// ── GETTERS ────────────────────────────────────────
+const activeProj  = () => S.projects.find(p => p.id === S.activeProjectId) || null;
+const activeImg   = () => { const p = activeProj(); return p ? p.images.find(i => i.id === S.activeImageId) || null : null; };
+const activeAnns  = () => activeImg()?.annotations || [];
+const uid         = () => 'i' + (S.nextId++) + '_' + Date.now();
+function nextNum() { const used = activeAnns().map(a=>a.number); let n=1; while(used.includes(n))n++; return n; }
 
-const STORAGE_KEY = 'annotation-tool-data';
+// ── PERSISTENCE ────────────────────────────────────
+function save() {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ projects:S.projects, activeProjectId:S.activeProjectId, activeImageId:S.activeImageId, nextId:S.nextId }));
+    document.getElementById('save-status').textContent = '自動保存: ' + new Date().toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  } catch(e) { document.getElementById('save-status').textContent = '⚠ 保存失敗（容量超過）'; }
+}
+function load() {
+  try {
+    const d = JSON.parse(localStorage.getItem(KEY)||'{}');
+    if (d.projects) { S.projects=d.projects; S.activeProjectId=d.activeProjectId; S.activeImageId=d.activeImageId; S.nextId=d.nextId||1; }
+  } catch(e) {}
+}
 
-// ─── DOM refs ─────────────────────────────────────────────
-const canvasInner = document.getElementById('canvas-inner');
-const mainImage   = document.getElementById('main-image');
-const pinLayer    = document.getElementById('pin-layer');
-const drawLayer   = document.getElementById('draw-layer');
-const placeholder = document.getElementById('upload-placeholder');
-const commentList = document.getElementById('comment-list');
-const editPanel   = document.getElementById('edit-panel');
-const countBadge  = document.getElementById('count-badge');
+// ── PROJECT CRUD ───────────────────────────────────
+function createProject() {
+  const name = prompt('ボックス名を入力', '新規プロジェクト');
+  if (!name?.trim()) return;
+  const p = { id:uid(), name:name.trim(), createdAt:new Date().toISOString(), images:[] };
+  S.projects.push(p);
+  selectProject(p.id);
+}
+function renameProject(id) {
+  const p = S.projects.find(p=>p.id===id);
+  const name = prompt('新しいボックス名', p?.name||'');
+  if (!name?.trim() || !p) return;
+  p.name = name.trim(); save(); renderProjects();
+}
+function deleteProject(id) {
+  if (!confirm('このボックスを削除しますか？')) return;
+  S.projects = S.projects.filter(p=>p.id!==id);
+  if (S.activeProjectId===id) { S.activeProjectId=S.projects[0]?.id||null; S.activeImageId=null; }
+  save(); render(); toast('削除しました');
+}
+function selectProject(id) {
+  S.activeProjectId=id;
+  S.activeImageId = S.projects.find(p=>p.id===id)?.images[0]?.id || null;
+  S.selectedId=null; cancelEdit(); save(); render();
+}
 
-// ─── Init ─────────────────────────────────────────────────
-loadFromStorage();
-
-// File input
-document.getElementById('file-input').addEventListener('change', e => {
-  if (e.target.files[0]) loadImage(e.target.files[0]);
-});
-document.getElementById('import-input').addEventListener('change', e => {
-  if (e.target.files[0]) importJSON(e.target.files[0]);
-});
-
-// Drop zone
-const dropZone = document.getElementById('drop-zone');
-dropZone.addEventListener('click', () => document.getElementById('file-input').click());
-document.getElementById('canvas-wrap').addEventListener('dragover', e => {
-  e.preventDefault(); dropZone.classList.add('dragover');
-});
-document.getElementById('canvas-wrap').addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-document.getElementById('canvas-wrap').addEventListener('drop', e => {
-  e.preventDefault(); dropZone.classList.remove('dragover');
-  const f = e.dataTransfer.files[0];
-  if (f && f.type.startsWith('image/')) loadImage(f);
-  else if (f && f.name.endsWith('.json')) importJSON(f);
-});
-
-// Canvas click
-canvasInner.addEventListener('mousedown', onCanvasMousedown);
-canvasInner.addEventListener('mousemove', onCanvasMousemove);
-canvasInner.addEventListener('mouseup', onCanvasMouseup);
-
-// Keyboard shortcuts
-document.addEventListener('keydown', e => {
-  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.tagName === 'SELECT') return;
-  if (e.key === 'p' || e.key === 'P') setTool('pin');
-  if (e.key === 'r' || e.key === 'R') setTool('rect');
-  if (e.key === 's' || e.key === 'S') setTool('pointer');
-  if (e.key === 'Escape') { cancelEdit(); selectAnnotation(null); }
-  if (e.key === 'Delete' && selectedId !== null) deleteAnnotation(selectedId);
-});
-
-// ─── Image Loading ────────────────────────────────────────
-function loadImage(file) {
-  const reader = new FileReader();
-  reader.onload = ev => {
-    imageDataURL = ev.target.result;
-    imageName = file.name;
-    mainImage.onload = () => {
-      imageNaturalW = mainImage.naturalWidth;
-      imageNaturalH = mainImage.naturalHeight;
-      resizeDrawLayer();
-      placeholder.classList.add('hidden');
-      canvasInner.style.display = 'inline-block';
-      fitImage();
-      renderAll();
-      saveToStorage();
+// ── IMAGE CRUD ─────────────────────────────────────
+function triggerUpload() {
+  if (!S.activeProjectId) { createProject(); return; }
+  document.getElementById('img-input').click();
+}
+function loadFiles(files) {
+  const p = activeProj(); if (!p) return;
+  let done=0;
+  Array.from(files).filter(f=>f.type.startsWith('image/')).forEach(file => {
+    const r = new FileReader();
+    r.onload = ev => {
+      const img = { id:uid(), name:file.name, src:ev.target.result, annotations:[] };
+      p.images.push(img);
+      if (!S.activeImageId) S.activeImageId = img.id;
+      if (++done === files.length) { save(); render(); toast(`${done}枚追加`); }
     };
-    mainImage.src = imageDataURL;
-  };
-  reader.readAsDataURL(file);
+    r.readAsDataURL(file);
+  });
+}
+function selectImage(id) { S.activeImageId=id; S.selectedId=null; cancelEdit(); save(); renderImageStrip(); renderCanvas(); renderAnnotations(); }
+function deleteImage(id) {
+  const p = activeProj(); if (!p) return;
+  if (!confirm('この画像とコメントを削除しますか？')) return;
+  p.images = p.images.filter(i=>i.id!==id);
+  if (S.activeImageId===id) S.activeImageId = p.images[0]?.id||null;
+  save(); render();
+}
+function renameImage(id) {
+  const img = activeProj()?.images.find(i=>i.id===id); if (!img) return;
+  const n = prompt('画像名', img.name); if (!n?.trim()) return;
+  img.name=n.trim(); save(); renderImageStrip();
 }
 
-function resizeDrawLayer() {
-  const w = imageNaturalW * zoomLevel;
-  const h = imageNaturalH * zoomLevel;
-  drawLayer.width  = w;
-  drawLayer.height = h;
-  drawLayer.style.width  = w + 'px';
-  drawLayer.style.height = h + 'px';
-  mainImage.style.width  = w + 'px';
-  mainImage.style.height = h + 'px';
-  pinLayer.style.width   = w + 'px';
-  pinLayer.style.height  = h + 'px';
-  canvasInner.style.width  = w + 'px';
-  canvasInner.style.height = h + 'px';
-  renderDrawings();
+// ── ANNOTATION CRUD ────────────────────────────────
+function addAnn(type, x, y, w, h) {
+  const img = activeImg(); if (!img) return;
+  const a = { id:uid(), number:nextNum(), type, x, y, w:w||0, h:h||0, content:'', reference:'', priority:'mid', status:'todo', assignee:'', createdAt:new Date().toISOString() };
+  img.annotations.push(a);
+  S.selectedId = a.id; save(); renderPins(); renderAnnotations(); openEdit(a.id, true);
 }
-
-// ─── Zoom ─────────────────────────────────────────────────
-function zoom(delta) {
-  if (delta === 0) { zoomLevel = 1; }
-  else { zoomLevel = Math.min(4, Math.max(0.25, zoomLevel + delta)); }
-  document.getElementById('zoom-label').textContent = Math.round(zoomLevel * 100) + '%';
-  resizeDrawLayer();
-  renderPins();
-}
-function fitImage() {
-  if (!imageNaturalW) return;
-  const wrap = document.getElementById('canvas-wrap');
-  const availW = wrap.clientWidth  - 48;
-  const availH = wrap.clientHeight - 48;
-  zoomLevel = Math.min(1, availW / imageNaturalW, availH / imageNaturalH);
-  zoomLevel = Math.max(0.1, zoomLevel);
-  document.getElementById('zoom-label').textContent = Math.round(zoomLevel * 100) + '%';
-  resizeDrawLayer();
-  renderPins();
-}
-
-// ─── Tool Selection ───────────────────────────────────────
-function setTool(tool) {
-  currentTool = tool;
-  document.getElementById('btn-pin').classList.toggle('active', tool === 'pin');
-  document.getElementById('btn-rect').classList.toggle('active', tool === 'rect');
-  document.getElementById('btn-pointer').classList.toggle('active', tool === 'pointer');
-  canvasInner.className = '';
-  if (tool === 'pointer') canvasInner.classList.add('mode-pointer');
-}
-
-// ─── Canvas Mouse Events ──────────────────────────────────
-function getImageCoords(e) {
-  const rect = canvasInner.getBoundingClientRect();
-  const x = (e.clientX - rect.left) / zoomLevel;
-  const y = (e.clientY - rect.top)  / zoomLevel;
-  return { x: x / imageNaturalW, y: y / imageNaturalH };
-}
-function getPixelCoords(e) {
-  const rect = canvasInner.getBoundingClientRect();
-  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
-}
-
-function onCanvasMousedown(e) {
-  if (e.target.closest('.pin')) return;
-  if (currentTool === 'pin' && imageNaturalW) {
-    const c = getImageCoords(e);
-    if (c.x < 0 || c.x > 1 || c.y < 0 || c.y > 1) return;
-    addAnnotation(c.x, c.y, 'pin');
-  } else if (currentTool === 'rect' && imageNaturalW) {
-    const p = getPixelCoords(e);
-    drawStart = p; isDrawing = true;
-    drawRect = document.createElement('div');
-    drawRect.className = 'draw-rect';
-    Object.assign(drawRect.style, { left: p.x + 'px', top: p.y + 'px', width: '0', height: '0' });
-    canvasInner.appendChild(drawRect);
-  }
-}
-function onCanvasMousemove(e) {
-  if (!isDrawing || currentTool !== 'rect') return;
-  const p = getPixelCoords(e);
-  const x = Math.min(p.x, drawStart.x);
-  const y = Math.min(p.y, drawStart.y);
-  const w = Math.abs(p.x - drawStart.x);
-  const h = Math.abs(p.y - drawStart.y);
-  Object.assign(drawRect.style, { left: x + 'px', top: y + 'px', width: w + 'px', height: h + 'px' });
-}
-function onCanvasMouseup(e) {
-  if (!isDrawing || currentTool !== 'rect') return;
-  isDrawing = false;
-  if (drawRect) {
-    const r = drawRect.getBoundingClientRect();
-    const cRect = canvasInner.getBoundingClientRect();
-    const rx = (r.left - cRect.left) / zoomLevel / imageNaturalW;
-    const ry = (r.top  - cRect.top)  / zoomLevel / imageNaturalH;
-    const rw = r.width  / zoomLevel / imageNaturalW;
-    const rh = r.height / zoomLevel / imageNaturalH;
-    drawRect.remove(); drawRect = null;
-    if (rw > 0.005 && rh > 0.005) {
-      const cx = rx + rw / 2;
-      const cy = ry;
-      addAnnotation(cx, cy, 'rect', { rx, ry, rw, rh });
-    }
-  }
-}
-
-// ─── Annotations CRUD ─────────────────────────────────────
-function addAnnotation(x, y, type = 'pin', shape = null) {
-  const ann = {
-    id: nextId++,
-    number: getNextNumber(),
-    x, y, type,
-    shape,
-    content: '',
-    reference: '',
-    priority: 'mid',
-    status: 'todo',
-    assignee: '',
-    createdAt: new Date().toISOString()
-  };
-  annotations.push(ann);
-  renderAll();
-  selectAnnotation(ann.id);
-  openEdit(ann.id, true);
-  saveToStorage();
-}
-function getNextNumber() {
-  const used = annotations.map(a => a.number);
-  let n = 1;
-  while (used.includes(n)) n++;
-  return n;
-}
-function deleteAnnotation(id) {
+function deleteAnn(id) {
+  const img = activeImg(); if (!img) return;
   if (!confirm('このコメントを削除しますか？')) return;
-  annotations = annotations.filter(a => a.id !== id);
-  if (selectedId === id) { selectedId = null; }
-  if (editingId === id) cancelEdit();
-  renderAll(); saveToStorage();
-  toast('コメントを削除しました');
+  img.annotations = img.annotations.filter(a=>a.id!==id);
+  if (S.selectedId===id) S.selectedId=null;
+  if (S.editingId===id) cancelEdit();
+  save(); renderPins(); renderAnnotations(); toast('削除しました');
 }
-function updateAnnotation(id, data) {
-  const idx = annotations.findIndex(a => a.id === id);
-  if (idx < 0) return;
-  Object.assign(annotations[idx], data);
-  renderAll(); saveToStorage();
+function updateAnn(id, data) {
+  const a = activeImg()?.annotations.find(a=>a.id===id); if (!a) return;
+  Object.assign(a, data); save(); renderPins(); renderAnnotations();
 }
-function selectAnnotation(id) {
-  selectedId = id;
-  renderPins();
-  renderSidebar();
-  if (id !== null) {
-    const card = document.querySelector(`.comment-card[data-id="${id}"]`);
-    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
+function selectAnn(id) {
+  S.selectedId=id; renderPins(); renderAnnotations();
+  if (id) document.querySelector(`.ann-card[data-id="${id}"]`)?.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-// ─── Edit Panel ───────────────────────────────────────────
-function openEdit(id, isNew = false) {
-  const ann = annotations.find(a => a.id === id);
-  if (!ann) return;
-  editingId = id;
-  document.getElementById('edit-panel-title').textContent = isNew ? `# ${ann.number} 新規コメント` : `# ${ann.number} コメントを編集`;
-  document.getElementById('f-content').value   = ann.content;
-  document.getElementById('f-reference').value = ann.reference;
-  document.getElementById('f-priority').value  = ann.priority;
-  document.getElementById('f-status').value    = ann.status;
-  document.getElementById('f-assignee').value  = ann.assignee;
-  editPanel.classList.add('open');
-  document.getElementById('f-content').focus();
+// ── EDIT PANEL ─────────────────────────────────────
+function openEdit(id, isNew=false) {
+  const a = activeImg()?.annotations.find(a=>a.id===id); if (!a) return;
+  S.editingId=id;
+  document.getElementById('ep-title').textContent = `#${a.number} ${isNew?'新規コメント':'コメント編集'}`;
+  document.getElementById('ep-content').value = a.content;
+  document.getElementById('ep-ref').value     = a.reference||'';
+  document.getElementById('ep-priority').value = a.priority;
+  document.getElementById('ep-status').value   = a.status;
+  document.getElementById('ep-assignee').value = a.assignee||'';
+  document.getElementById('edit-panel').classList.add('open');
+  document.getElementById('ep-content').focus();
 }
 function saveEdit() {
-  if (editingId === null) return;
-  const content = document.getElementById('f-content').value.trim();
-  if (!content) { alert('修正内容を入力してください'); return; }
-  updateAnnotation(editingId, {
-    content,
-    reference: document.getElementById('f-reference').value.trim(),
-    priority:  document.getElementById('f-priority').value,
-    status:    document.getElementById('f-status').value,
-    assignee:  document.getElementById('f-assignee').value.trim(),
-  });
-  editPanel.classList.remove('open');
-  editingId = null;
-  toast('保存しました');
+  if (!S.editingId) return;
+  const c = document.getElementById('ep-content').value.trim();
+  if (!c) { alert('修正内容を入力してください'); return; }
+  updateAnn(S.editingId, { content:c, reference:document.getElementById('ep-ref').value.trim(), priority:document.getElementById('ep-priority').value, status:document.getElementById('ep-status').value, assignee:document.getElementById('ep-assignee').value.trim() });
+  document.getElementById('edit-panel').classList.remove('open');
+  S.editingId=null; toast('保存しました');
 }
 function cancelEdit() {
-  if (editingId !== null) {
-    const ann = annotations.find(a => a.id === editingId);
-    if (ann && ann.content === '') {
-      deleteAnnotation(ann.id);
-      editingId = null;
-      editPanel.classList.remove('open');
-      return;
-    }
+  if (S.editingId) {
+    const a = activeImg()?.annotations.find(a=>a.id===S.editingId);
+    if (a && !a.content) { const img=activeImg(); if(img) { img.annotations=img.annotations.filter(a=>a.id!==S.editingId); save(); renderPins(); renderAnnotations(); } }
   }
-  editPanel.classList.remove('open');
-  editingId = null;
+  document.getElementById('edit-panel').classList.remove('open'); S.editingId=null;
 }
 
-// ─── Render ───────────────────────────────────────────────
-function renderAll() { renderPins(); renderSidebar(); renderDrawings(); }
+// ── TOOL ───────────────────────────────────────────
+function setTool(t) {
+  S.tool=t;
+  ['point','rect','select'].forEach(n=>document.getElementById('btn-'+n).classList.toggle('active',n===t));
+  document.getElementById('ann-overlay').className = t==='select'?'mode-select':'';
+}
+
+// ── ZOOM ───────────────────────────────────────────
+function changeZoom(d) {
+  S.zoom = d===0 ? 1 : Math.min(4, Math.max(0.25, S.zoom+d));
+  document.getElementById('zoom-val').textContent = Math.round(S.zoom*100)+'%';
+  applyZoom(); renderPins();
+}
+function fitZoom() {
+  const mi = document.getElementById('main-img'); if (!mi.naturalWidth) return;
+  const vp = document.getElementById('viewport');
+  S.zoom = Math.max(0.1, Math.min(1, (vp.clientWidth-48)/mi.naturalWidth, (vp.clientHeight-48)/mi.naturalHeight));
+  document.getElementById('zoom-val').textContent = Math.round(S.zoom*100)+'%';
+  applyZoom(); renderPins();
+}
+function applyZoom() {
+  const mi = document.getElementById('main-img'); if (!mi.naturalWidth) return;
+  const w=mi.naturalWidth*S.zoom, h=mi.naturalHeight*S.zoom;
+  mi.style.width=w+'px'; mi.style.height=h+'px';
+  const ov=document.getElementById('ann-overlay'); ov.style.width=w+'px'; ov.style.height=h+'px';
+  const ic=document.getElementById('img-container'); ic.style.width=w+'px'; ic.style.height=h+'px';
+}
+
+// ── CANVAS EVENTS ──────────────────────────────────
+const overlay = document.getElementById('ann-overlay');
+const drawPrev = document.getElementById('draw-prev');
+
+overlay.addEventListener('mousedown', e => {
+  if (e.target.closest('.pin,.ann-rect')) return;
+  const img = activeImg(); if (!img) return;
+  const r = overlay.getBoundingClientRect();
+  const px=(e.clientX-r.left)/overlay.offsetWidth, py=(e.clientY-r.top)/overlay.offsetHeight;
+  if (S.tool==='point') { addAnn('point',px,py); }
+  else if (S.tool==='rect') {
+    S.drawing=true; S.dx0=e.clientX-r.left; S.dy0=e.clientY-r.top;
+    Object.assign(drawPrev.style,{display:'block',left:S.dx0+'px',top:S.dy0+'px',width:'0',height:'0'});
+  }
+});
+overlay.addEventListener('mousemove', e => {
+  if (!S.drawing) return;
+  const r=overlay.getBoundingClientRect(), cx=e.clientX-r.left, cy=e.clientY-r.top;
+  Object.assign(drawPrev.style,{left:Math.min(cx,S.dx0)+'px',top:Math.min(cy,S.dy0)+'px',width:Math.abs(cx-S.dx0)+'px',height:Math.abs(cy-S.dy0)+'px'});
+});
+overlay.addEventListener('mouseup', e => {
+  if (!S.drawing) return; S.drawing=false; drawPrev.style.display='none';
+  const r=overlay.getBoundingClientRect(), cx=e.clientX-r.left, cy=e.clientY-r.top;
+  const x=Math.min(cx,S.dx0)/overlay.offsetWidth, y=Math.min(cy,S.dy0)/overlay.offsetHeight;
+  const w=Math.abs(cx-S.dx0)/overlay.offsetWidth, h=Math.abs(cy-S.dy0)/overlay.offsetHeight;
+  if (w>0.01&&h>0.01) addAnn('rect',x,y,w,h);
+});
+overlay.addEventListener('mouseleave', ()=>{ if(S.drawing){S.drawing=false;drawPrev.style.display='none';} });
+
+// ── FILTER ─────────────────────────────────────────
+function setFilter(f,btn) {
+  S.filter=f;
+  document.querySelectorAll('.fbtn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active'); renderAnnotations();
+}
+function filtered() {
+  return activeAnns().filter(a => {
+    if (S.filter==='all') return true;
+    if (S.filter==='high') return a.priority==='high';
+    return a.status===S.filter;
+  });
+}
+
+// ── RENDER ─────────────────────────────────────────
+function render() { renderProjects(); renderImageStrip(); renderCanvas(); renderAnnotations(); }
+
+function renderProjects() {
+  const list=document.getElementById('project-list');
+  const noP=document.getElementById('no-project');
+  if (!S.projects.length) { list.innerHTML='<p style="color:#ccc;font-size:12px;text-align:center;padding:20px">ボックスがありません</p>'; noP.style.display='flex'; document.getElementById('img-container').style.display='none'; document.getElementById('empty-project').style.display='none'; return; }
+  noP.style.display='none';
+  list.innerHTML='';
+  S.projects.forEach(p=>{
+    const el=document.createElement('div');
+    el.className='project-item'+(p.id===S.activeProjectId?' active':'');
+    el.innerHTML=`<span class="pi-name" title="${esc(p.name)}">${esc(p.name)}</span><span class="pi-count">${p.images.length}</span><span class="pi-acts"><button class="pi-btn" onclick="event.stopPropagation();renameProject('${p.id}')" title="名前変更">✏️</button><button class="pi-btn" onclick="event.stopPropagation();deleteProject('${p.id}')" title="削除">🗑</button></span>`;
+    el.onclick=()=>selectProject(p.id);
+    list.appendChild(el);
+  });
+}
+
+function renderImageStrip() {
+  const strip=document.getElementById('image-strip'), p=activeProj();
+  strip.innerHTML=''; if (!p) return;
+  p.images.forEach(img=>{
+    const el=document.createElement('div');
+    el.className='thumb-item'+(img.id===S.activeImageId?' active':'');
+    el.innerHTML=`<img src="${img.src}" title="${esc(img.name)}" alt="${esc(img.name)}"><button class="tdel" onclick="event.stopPropagation();deleteImage('${img.id}')">✕</button>`;
+    el.onclick=()=>selectImage(img.id);
+    el.ondblclick=e=>{e.stopPropagation();renameImage(img.id);};
+    strip.appendChild(el);
+  });
+}
+
+function renderCanvas() {
+  const imgData=activeImg(), ic=document.getElementById('img-container'), ep=document.getElementById('empty-project'), np=document.getElementById('no-project'), mi=document.getElementById('main-img');
+  if (!activeProj()) { np.style.display='flex'; ic.style.display='none'; ep.style.display='none'; return; }
+  np.style.display='none';
+  if (!imgData) { ic.style.display='none'; ep.style.display='flex'; document.getElementById('drop-zone').onclick=()=>triggerUpload(); return; }
+  ep.style.display='none';
+  if (mi.dataset.src!==imgData.id) {
+    mi.dataset.src=imgData.id;
+    mi.onload=()=>{ applyZoom(); renderPins(); };
+    mi.src=imgData.src;
+  }
+  ic.style.display='inline-block'; applyZoom(); renderPins();
+}
 
 function renderPins() {
-  pinLayer.innerHTML = '';
-  if (!imageNaturalW) return;
-  annotations.forEach(ann => {
-    const px = ann.x * imageNaturalW * zoomLevel;
-    const py = ann.y * imageNaturalH * zoomLevel;
-    const pin = document.createElement('div');
-    pin.className = `pin status-${ann.status}${(hideDone && ann.status === 'done') ? ' hidden' : ''}${ann.id === selectedId ? ' selected' : ''}`;
-    pin.style.left = px + 'px';
-    pin.style.top  = py + 'px';
-    pin.innerHTML  = `<span class="pin-num">${ann.number}</span>`;
-    pin.dataset.id = ann.id;
-    pin.addEventListener('click', e => {
-      e.stopPropagation();
-      selectAnnotation(ann.id);
-    });
-    pin.addEventListener('dblclick', e => {
-      e.stopPropagation();
-      selectAnnotation(ann.id);
-      openEdit(ann.id);
-    });
-    pinLayer.appendChild(pin);
-  });
-}
-
-function renderDrawings() {
-  const ctx = drawLayer.getContext('2d');
-  ctx.clearRect(0, 0, drawLayer.width, drawLayer.height);
-  annotations.forEach(ann => {
-    if (ann.type !== 'rect' || !ann.shape) return;
-    if (hideDone && ann.status === 'done') return;
-    const { rx, ry, rw, rh } = ann.shape;
-    const x = rx * imageNaturalW * zoomLevel;
-    const y = ry * imageNaturalH * zoomLevel;
-    const w = rw * imageNaturalW * zoomLevel;
-    const h = rh * imageNaturalH * zoomLevel;
-    ctx.save();
-    ctx.strokeStyle = ann.status === 'done' ? '#10b981' : ann.status === 'doing' ? '#f59e0b' : '#ef4444';
-    ctx.lineWidth = 2.5;
-    ctx.fillStyle = ctx.strokeStyle.replace(')', ', 0.07)').replace('rgb', 'rgba');
-    ctx.fillStyle = ann.status === 'done' ? 'rgba(16,185,129,0.07)' :
-                    ann.status === 'doing' ? 'rgba(245,158,11,0.07)' : 'rgba(239,68,68,0.07)';
-    if (ann.id === selectedId) { ctx.shadowColor = ctx.strokeStyle; ctx.shadowBlur = 6; }
-    ctx.strokeRect(x, y, w, h);
-    ctx.fillRect(x, y, w, h);
-    ctx.restore();
-  });
-}
-
-function renderSidebar() {
-  const filtered = getFiltered();
-  countBadge.textContent = `${filtered.length} 件`;
-  commentList.innerHTML = '';
-  if (filtered.length === 0) {
-    commentList.innerHTML = '<p style="text-align:center;color:#aaa;padding:32px 16px;font-size:13px;">コメントはありません</p>';
-    return;
-  }
-  filtered.forEach(ann => {
-    const card = document.createElement('div');
-    card.className = `comment-card status-${ann.status}${ann.id === selectedId ? ' selected' : ''}`;
-    card.dataset.id = ann.id;
-    const priorityLabel = { high: '高', mid: '中', low: '低' }[ann.priority] || ann.priority;
-    const statusLabel   = { todo: '未対応', doing: '対応中', done: '完了' }[ann.status] || ann.status;
-    card.innerHTML = `
-      <div class="card-header">
-        <div class="card-pin status-${ann.status}">${ann.number}</div>
-        <div class="card-meta">
-          <div class="card-title">${esc(ann.content || '(コメント未入力)')}</div>
-          <div class="card-badges">
-            <span class="badge badge-${ann.priority}">${priorityLabel}</span>
-            <span class="badge badge-${ann.status}">${statusLabel}</span>
-            ${ann.assignee ? `<span class="badge badge-assign">${esc(ann.assignee)}</span>` : ''}
-          </div>
-        </div>
-      </div>
-      ${ann.reference ? `<div class="card-body"><div class="card-field"><span class="card-field-label">参考：</span>${esc(ann.reference)}</div></div>` : ''}
-      <div class="card-actions">
-        <button onclick="openEdit(${ann.id})" title="編集">✏️ 編集</button>
-        <select style="flex:1;font-size:12px;padding:4px 6px;border-radius:6px;border:1px solid #d5d5d3;" onchange="updateAnnotation(${ann.id},{status:this.value})">
-          <option value="todo"  ${ann.status==='todo'  ? 'selected' : ''}>未対応</option>
-          <option value="doing" ${ann.status==='doing' ? 'selected' : ''}>対応中</option>
-          <option value="done"  ${ann.status==='done'  ? 'selected' : ''}>完了</option>
-        </select>
-        <button class="btn-danger" onclick="deleteAnnotation(${ann.id})" title="削除">🗑</button>
-      </div>
-    `;
-    card.addEventListener('click', e => {
-      if (e.target.tagName === 'BUTTON' || e.target.tagName === 'SELECT') return;
-      selectAnnotation(ann.id);
-    });
-    commentList.appendChild(card);
-  });
-}
-
-function getFiltered() {
-  return annotations.filter(ann => {
-    if (hideDone && ann.status === 'done') return false;
-    if (currentFilter === 'all') return true;
-    if (currentFilter === 'high') return ann.priority === 'high';
-    return ann.status === currentFilter;
-  });
-}
-
-// ─── Filter / Toggle ─────────────────────────────────────
-function setFilter(f, btn) {
-  currentFilter = f;
-  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
-  btn.classList.add('active');
-  renderSidebar();
-}
-function toggleDone() {
-  hideDone = !hideDone;
-  const btn = document.getElementById('btn-hide-done');
-  btn.classList.toggle('active', hideDone);
-  renderAll();
-}
-
-// ─── Persist ─────────────────────────────────────────────
-function saveToStorage() {
-  const data = { annotations, nextId, imageDataURL, imageName, imageNaturalW, imageNaturalH };
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch (e) {}
-}
-function loadFromStorage() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return;
-    const data = JSON.parse(raw);
-    annotations = data.annotations || [];
-    nextId = data.nextId || (annotations.length + 1);
-    imageName = data.imageName || '';
-    if (data.imageDataURL) {
-      imageDataURL = data.imageDataURL;
-      imageNaturalW = data.imageNaturalW;
-      imageNaturalH = data.imageNaturalH;
-      mainImage.onload = () => {
-        resizeDrawLayer();
-        placeholder.classList.add('hidden');
-        canvasInner.style.display = 'inline-block';
-        fitImage();
-        renderAll();
-      };
-      mainImage.src = imageDataURL;
+  const ov=document.getElementById('ann-overlay');
+  Array.from(ov.children).forEach(el=>{ if(el.id!=='draw-prev') el.remove(); });
+  activeAnns().forEach(a=>{
+    if (a.type==='point') {
+      const el=document.createElement('div');
+      el.className=`pin s-${a.status}${a.id===S.selectedId?' sel':''}`;
+      el.style.left=(a.x*100)+'%'; el.style.top=(a.y*100)+'%';
+      el.innerHTML=`<span class="pn">${a.number}</span>`; el.dataset.id=a.id;
+      el.onclick=e=>{e.stopPropagation();selectAnn(a.id);};
+      el.ondblclick=e=>{e.stopPropagation();selectAnn(a.id);openEdit(a.id);};
+      ov.appendChild(el);
+    } else {
+      const el=document.createElement('div');
+      el.className=`ann-rect s-${a.status}${a.id===S.selectedId?' sel':''}`;
+      el.style.left=(a.x*100)+'%'; el.style.top=(a.y*100)+'%'; el.style.width=(a.w*100)+'%'; el.style.height=(a.h*100)+'%';
+      el.innerHTML=`<span class="rnum">${a.number}</span>`; el.dataset.id=a.id;
+      el.onclick=e=>{e.stopPropagation();selectAnn(a.id);};
+      el.ondblclick=e=>{e.stopPropagation();selectAnn(a.id);openEdit(a.id);};
+      ov.appendChild(el);
     }
-  } catch (e) {}
+  });
 }
 
-// ─── Export / Import ─────────────────────────────────────
-function exportJSON() {
-  const data = { imageName, annotations, exportedAt: new Date().toISOString() };
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = (imageName ? imageName.replace(/\.[^.]+$/, '') : 'annotations') + '_comments.json';
-  a.click(); URL.revokeObjectURL(a.href);
-  toast('JSONを保存しました');
+function renderAnnotations() {
+  const list=document.getElementById('ann-list'), anns=filtered();
+  document.getElementById('ann-count').textContent=activeAnns().length+'件';
+  if (!anns.length) { list.innerHTML='<p style="text-align:center;color:#ccc;padding:28px 16px;font-size:13px;">コメントはありません</p>'; return; }
+  const sL={todo:'未対応',doing:'対応中',done:'完了'}, pL={high:'高',mid:'中',low:'低'}, tL={point:'📍ピン',rect:'⬜範囲'};
+  list.innerHTML='';
+  anns.forEach(a=>{
+    const card=document.createElement('div');
+    card.className=`ann-card s-${a.status}${a.id===S.selectedId?' sel':''}`;
+    card.dataset.id=a.id;
+    card.innerHTML=`<div class="ctop"><div class="cnum s-${a.status}">${a.number}</div><div class="cinfo"><div class="ctext">${esc(a.content||'(未入力)')}</div><div class="cbadges"><span class="badge b-${a.priority}">${pL[a.priority]}</span><span class="badge b-${a.status}">${sL[a.status]}</span><span class="badge b-type">${tL[a.type]}</span>${a.assignee?`<span class="badge b-assign">${esc(a.assignee)}</span>`:''}</div></div></div>${a.reference?`<div class="cref"><span class="cref-label">参考：</span>${esc(a.reference)}</div>`:''}<div class="cacts"><button onclick="event.stopPropagation();openEdit('${a.id}')">✏️ 編集</button><select onchange="event.stopPropagation();updateAnn('${a.id}',{status:this.value})"><option value="todo" ${a.status==='todo'?'selected':''}>未対応</option><option value="doing" ${a.status==='doing'?'selected':''}>対応中</option><option value="done" ${a.status==='done'?'selected':''}>完了</option></select><button class="bdel" onclick="event.stopPropagation();deleteAnn('${a.id}')">🗑</button></div>`;
+    card.onclick=e=>{ if(e.target.tagName==='BUTTON'||e.target.tagName==='SELECT') return; selectAnn(a.id); };
+    list.appendChild(card);
+  });
+}
+
+// ── EXPORT / IMPORT ────────────────────────────────
+function exportCurrent() {
+  const p=activeProj(); if(!p){alert('プロジェクトを選択してください');return;}
+  dl(projData(p), p.name+'_annotations.json'); toast('保存しました');
+}
+function exportAll() {
+  dl({exportedAt:new Date().toISOString(),projects:S.projects.map(projData)},'all_projects.json'); toast('全プロジェクトを保存しました');
+}
+function projData(p) {
+  return {id:p.id,name:p.name,createdAt:p.createdAt,images:p.images.map(img=>({id:img.id,name:img.name,annotations:img.annotations.map(a=>({id:a.id,number:a.number,type:a.type,x:a.x,y:a.y,w:a.w,h:a.h,content:a.content,reference:a.reference,priority:a.priority,status:a.status,assignee:a.assignee,createdAt:a.createdAt}))}))} ;
+}
+function dl(data,fname) {
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([JSON.stringify(data,null,2)],{type:'application/json'})); a.download=fname; a.click(); URL.revokeObjectURL(a.href);
 }
 function importJSON(file) {
-  const reader = new FileReader();
-  reader.onload = ev => {
+  const r=new FileReader(); r.onload=ev=>{
     try {
-      const data = JSON.parse(ev.target.result);
-      if (!Array.isArray(data.annotations)) throw new Error('invalid');
-      if (annotations.length > 0 && !confirm('現在のコメントを上書きしてインポートしますか？')) return;
-      annotations = data.annotations;
-      nextId = Math.max(...annotations.map(a => a.id), 0) + 1;
-      renderAll(); saveToStorage();
-      toast('インポートしました');
-    } catch (e) { alert('JSONファイルの読み込みに失敗しました'); }
-  };
-  reader.readAsText(file);
+      const d=JSON.parse(ev.target.result);
+      if (d.projects) { if(!confirm(`${d.projects.length}個のプロジェクトをインポートしますか？`))return; d.projects.forEach(p=>{if(!S.projects.find(e=>e.id===p.id))S.projects.push(p);}); }
+      else if (d.images) { if(!confirm(`「${d.name}」をインポートしますか？`))return; if(!S.projects.find(p=>p.id===d.id))S.projects.push(d); S.activeProjectId=d.id; }
+      else throw 0;
+      save(); render(); toast('インポートしました');
+    } catch(e){alert('JSONの読み込みに失敗しました');}
+  }; r.readAsText(file);
 }
-
-// ─── PNG Export ──────────────────────────────────────────
 function exportPNG() {
-  if (!imageNaturalW) { alert('画像を開いてください'); return; }
-  const canvas = document.createElement('canvas');
-  canvas.width  = imageNaturalW;
-  canvas.height = imageNaturalH;
-  const ctx = canvas.getContext('2d');
-  const img = new Image();
-  img.onload = () => {
-    ctx.drawImage(img, 0, 0);
-    // Draw rect shapes
-    annotations.forEach(ann => {
-      if (ann.type !== 'rect' || !ann.shape) return;
-      const { rx, ry, rw, rh } = ann.shape;
-      ctx.save();
-      ctx.strokeStyle = ann.status === 'done' ? '#10b981' : ann.status === 'doing' ? '#f59e0b' : '#ef4444';
-      ctx.lineWidth = 3;
-      ctx.strokeRect(rx * imageNaturalW, ry * imageNaturalH, rw * imageNaturalW, rh * imageNaturalH);
-      ctx.restore();
+  const img=activeImg(); if(!img){alert('画像を選択してください');return;}
+  const mi=document.getElementById('main-img'), cv=document.createElement('canvas');
+  cv.width=mi.naturalWidth; cv.height=mi.naturalHeight;
+  const ctx=cv.getContext('2d'), src=new Image();
+  src.onload=()=>{
+    ctx.drawImage(src,0,0);
+    const W=mi.naturalWidth,H=mi.naturalHeight;
+    img.annotations.forEach(a=>{
+      const col=a.status==='done'?'#10b981':a.status==='doing'?'#f59e0b':'#ef4444';
+      if(a.type==='rect'){ctx.save();ctx.strokeStyle=col;ctx.lineWidth=3;ctx.strokeRect(a.x*W,a.y*H,a.w*W,a.h*H);ctx.restore();}
+      ctx.save();ctx.fillStyle=col;ctx.beginPath();ctx.arc(a.x*W,a.type==='point'?a.y*H-14:a.y*H-6,12,0,Math.PI*2);ctx.fill();ctx.fillStyle='#fff';ctx.font='bold 10px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(String(a.number),a.x*W,a.type==='point'?a.y*H-14:a.y*H-6);ctx.restore();
     });
-    // Draw pins
-    annotations.forEach(ann => {
-      const px = ann.x * imageNaturalW;
-      const py = ann.y * imageNaturalH;
-      const color = ann.status === 'done' ? '#10b981' : ann.status === 'doing' ? '#f59e0b' : '#ef4444';
-      ctx.save();
-      ctx.fillStyle = color;
-      ctx.beginPath();
-      ctx.arc(px, py - 14, 14, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
-      ctx.font = 'bold 13px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(String(ann.number), px, py - 14);
-      ctx.restore();
-    });
-    const a = document.createElement('a');
-    a.href = canvas.toDataURL('image/png');
-    a.download = (imageName ? imageName.replace(/\.[^.]+$/, '') : 'image') + '_annotated.png';
-    a.click();
+    const a=document.createElement('a'); a.href=cv.toDataURL('image/png'); a.download=(img.name||'image').replace(/\.[^.]+$/,'')+'_annotated.png'; a.click();
     toast('PNG書き出し完了');
-  };
-  img.src = imageDataURL;
+  }; src.src=img.src;
 }
 
-// ─── Helpers ─────────────────────────────────────────────
-function esc(s) {
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-}
-let toastTimer;
-function toast(msg) {
-  const el = document.getElementById('toast');
-  el.textContent = msg; el.classList.add('show');
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => el.classList.remove('show'), 2000);
-}
+// ── DRAG & DROP ────────────────────────────────────
+document.getElementById('viewport').addEventListener('dragover',e=>{e.preventDefault();document.getElementById('drop-zone')?.classList.add('over');});
+document.getElementById('viewport').addEventListener('dragleave',()=>document.getElementById('drop-zone')?.classList.remove('over'));
+document.getElementById('viewport').addEventListener('drop',e=>{
+  e.preventDefault(); document.getElementById('drop-zone')?.classList.remove('over');
+  const imgs=Array.from(e.dataTransfer.files).filter(f=>f.type.startsWith('image/'));
+  const jsons=Array.from(e.dataTransfer.files).filter(f=>f.name.endsWith('.json'));
+  if(imgs.length){if(!S.activeProjectId)createProject();loadFiles(imgs);}
+  else if(jsons.length)importJSON(jsons[0]);
+});
+
+// ── FILE INPUTS ────────────────────────────────────
+document.getElementById('img-input').addEventListener('change',e=>{if(e.target.files.length)loadFiles(e.target.files);e.target.value='';});
+document.getElementById('import-input').addEventListener('change',e=>{if(e.target.files[0])importJSON(e.target.files[0]);e.target.value='';});
+
+// ── KEYBOARD ───────────────────────────────────────
+document.addEventListener('keydown',e=>{
+  if(['INPUT','TEXTAREA','SELECT'].includes(e.target.tagName))return;
+  if(e.key==='p'||e.key==='P')setTool('point');
+  if(e.key==='r'||e.key==='R')setTool('rect');
+  if(e.key==='s'||e.key==='S')setTool('select');
+  if(e.key==='Escape'){cancelEdit();selectAnn(null);}
+  if(e.key==='Delete'&&S.selectedId)deleteAnn(S.selectedId);
+});
+
+// ── UTIL ───────────────────────────────────────────
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+let _tt;
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(_tt);_tt=setTimeout(()=>el.classList.remove('show'),2200);}
+
+// ── BOOT ───────────────────────────────────────────
+load(); render();
 </script>
 </body>
 </html>
